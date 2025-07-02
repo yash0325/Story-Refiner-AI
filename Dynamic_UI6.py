@@ -52,6 +52,9 @@ def get_subtask_issue_type(jira, project_key):
 
 def create_jira_subtask(jira, parent_issue_key, summary, project_key, subtask_issue_type):
     """Create a sub-task under the specified parent."""
+    parent_issue = jira.issue(parent_issue_key)
+    if parent_issue.fields.issuetype.subtask:
+        raise Exception("Cannot create a sub-task under a sub-task!")
     issue_dict = {
         'project': {'key': project_key},
         'parent': {'key': parent_issue_key},
@@ -154,20 +157,25 @@ if st.session_state.get("connected", False):
     if issues:
         show_only_unrefined = st.checkbox("Show only unrefined stories", value=False)
 
+        # Only allow valid parent issue types
+        valid_parent_types = ["Story", "Task", "Bug"]
         filtered_issues = []
         issue_titles = []
 
         for i in issues:
             desc = i.fields.description or ""
             refined_flag = "_Refined by AI agent_" in desc
+            # Only add if issue type is in allowed list
+            if i.fields.issuetype.name not in valid_parent_types:
+                continue
             if show_only_unrefined and refined_flag:
                 continue
-            label = f"{'✅ ' if refined_flag else ''}{i.key}: {i.fields.summary}"
+            label = f"{'✅ ' if refined_flag else ''}{i.key}: {i.fields.summary} ({i.fields.issuetype.name})"
             issue_titles.append(label)
             filtered_issues.append(i)
 
         if not issue_titles:
-            st.warning("No unrefined stories found.")
+            st.warning("No unrefined stories found or no valid parent issues available. Only Story, Task, or Bug can have sub-tasks.")
             st.stop()
 
         selected = st.selectbox("Select a user story to refine:", issue_titles)
@@ -179,6 +187,7 @@ if st.session_state.get("connected", False):
             st.subheader("📝 Original Story")
             st.markdown(f"**Summary:** {selected_issue.fields.summary}")
             st.markdown(f"**Description:** {selected_issue.fields.description or ''}")
+            st.markdown(f"**Issue Type:** {selected_issue.fields.issuetype.name}")
 
         with col2:
             st.subheader("✨ Refined Output")
@@ -294,4 +303,4 @@ if st.session_state.get("connected", False):
                             st.error(f"Failed to update Jira: {e}")
 
     else:
-        st.warning("No issues found in the selected project.")
+        st.warning("No issues found in the selected project or no eligible parent issues (Story, Task, or Bug).")
