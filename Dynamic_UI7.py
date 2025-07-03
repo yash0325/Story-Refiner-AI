@@ -295,9 +295,12 @@ if st.session_state.get("connected", False):
 
                 # ------ BUTTON TO CREATE SUB-TASKS ------
                 if st.session_state.get("last_task_breakdown_lines"):
+                    confirm_delete = st.checkbox(
+                        "I understand this will delete ALL existing sub-tasks and replace them with the latest AI-generated ones.",
+                        key="confirm_delete_subtasks"
+                    )
                     if st.button("📎 Create Jira Sub-tasks (replace existing)", key="create_jira_subtasks_btn"):
-                        # Confirmation dialog
-                        if st.confirm("This will delete all existing sub-tasks for this issue and replace them with the latest AI-generated ones. Proceed?"):
+                        if confirm_delete:
                             try:
                                 subtask_issue_type = get_subtask_issue_type(jira, jira_project_key)
                                 parent_issue_key = selected_issue.key
@@ -316,6 +319,8 @@ if st.session_state.get("connected", False):
                                 st.success(f"Created sub-tasks: {', '.join(created_keys)} (replacing any previous ones)")
                             except Exception as e:
                                 st.error(f"Failed to create sub-tasks: {e}")
+                        else:
+                            st.warning("Please check the confirmation box before replacing sub-tasks!")
 
                 # ------ Optional: Also keep "Update Jira with Tasks" if you want old behavior ------
                 if st.session_state.get("last_task_breakdown"):
